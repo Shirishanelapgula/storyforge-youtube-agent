@@ -12,3 +12,12 @@ output/
 inbox/processed/
 inbox/errors/
 .pytest_cache/
+
+test_telugu_pipeline/
+test_hf*/
+test_audio*/
+test_images*/
+test_flux*/
+test_picsum*/
+test_relevant*/
+test_output*/
