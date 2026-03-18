@@ -1,0 +1,24 @@
+# ─── Core ─────────────────────────────────────────────────────────────────────
+anthropic>=0.25.0              # Claude API (story + quality check)
+
+# ─── Text-to-Speech ───────────────────────────────────────────────────────────
+gTTS>=2.5.0                    # Google TTS (free, no API key)
+mutagen>=1.47.0                # Audio duration detection
+
+# ─── Image Generation (optional) ─────────────────────────────────────────────
+requests>=2.31.0               # Stability AI / ElevenLabs HTTP calls
+Pillow>=10.3.0                 # Image manipulation (optional enhancement)
+
+# ─── Video ────────────────────────────────────────────────────────────────────
+# moviepy>=1.0.3               # Alternative to raw FFmpeg (optional)
+# FFmpeg must be installed separately via OS package manager
+
+# ─── Utilities ────────────────────────────────────────────────────────────────
+watchdog>=4.0.0                # Folder watcher (alternative to polling)
+python-dotenv>=1.0.0           # Load .env for API keys
+
+# ─── Dev / Testing ────────────────────────────────────────────────────────────
+pytest>=8.0.0
+
+fastapi[standard]
+uvicorn

@@ -1,0 +1,14 @@
+﻿.env
+venv/
+__pycache__/
+*.pyc
+*.pyo
+workspace/
+logs/
+output/
+*.mp4
+*.mp3
+*.png
+inbox/processed/
+inbox/errors/
+.pytest_cache/

@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StoryForge — AI YouTube Content Agent</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f0e0c;
+    --paper: #f7f4ee;
+    --cream: #ede8df;
+    --gold: #c9a84c;
+    --gold-light: #e8d49a;
+    --red: #c94c4c;
+    --green: #2d6a4f;
+    --muted: #7a756c;
+    --border: #d4cfc6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1.5px solid var(--ink);
+    padding: 0 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 72px;
+    background: var(--paper);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-dot {
+    width: 8px; height: 8px;
+    background: var(--gold);
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .status-pill {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #aaa;
+    transition: background 0.3s;
+  }
+  .status-dot.online { background: #4caf50; box-shadow: 0 0 6px #4caf5066; }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 80px 48px 60px;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+  }
+
+  .hero-text h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(36px, 5vw, 58px);
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 20px;
+  }
+
+  .hero-text h1 em {
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  .hero-text p {
+    font-size: 16px;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 440px;
+  }
+
+  .stats-row {
+    display: flex;
+    gap: 40px;
+    margin-top: 40px;
+  }
+
+  .stat { border-left: 2px solid var(--gold); padding-left: 16px; }
+  .stat-num { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; }
+  .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+  /* ── Generator Card ── */
+  .generator {
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 16px;
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .generator::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: var(--gold);
+    opacity: 0.08;
+  }
+
+  .generator h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    margin-bottom: 28px;
+    font-weight: 400;
+  }
+
+  .form-group { margin-bottom: 20px; }
+
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #999;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+
+  .format-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .format-btn {
+    padding: 12px;
+    border: 1.5px solid #333;
+    border-radius: 8px;
+    background: transparent;
+    color: #999;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .format-btn.active {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: rgba(201,168,76,0.08);
+  }
+
+  .format-btn:hover:not(.active) { border-color: #555; color: #ccc; }
+
+  .theme-select {
+    width: 100%;
+    padding: 12px 16px;
+    background: #1a1917;
+    border: 1.5px solid #333;
+    border-radius: 8px;
+    color: var(--paper);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    appearance: none;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .theme-select:focus { border-color: var(--gold); }
+
+  .custom-theme-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: #1a1917;
+    border: 1.5px solid #333;
+    border-radius: 8px;
+    color: var(--paper);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-top: 8px;
+    display: none;
+  }
+
+  .custom-theme-input:focus { border-color: var(--gold); }
+  .custom-theme-input::placeholder { color: #555; }
+
+  .generate-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--gold);
+    color: var(--ink);
+    border: none;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .generate-btn:hover { background: var(--gold-light); transform: translateY(-1px); }
+  .generate-btn:active { transform: translateY(0); }
+  .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* ── Progress ── */
+  .progress-section {
+    padding: 40px 48px;
+    border-bottom: 1px solid var(--border);
+    display: none;
+  }
+
+  .progress-section.visible { display: block; }
+
+  .progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .progress-header h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 400;
+  }
+
+  .progress-id {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: monospace;
+    background: var(--cream);
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+  }
+
+  .step-card {
+    background: var(--cream);
+    border-radius: 10px;
+    padding: 16px 12px;
+    text-align: center;
+    border: 1.5px solid transparent;
+    transition: all 0.3s;
+    position: relative;
+  }
+
+  .step-card.active {
+    border-color: var(--gold);
+    background: #fffbf0;
+  }
+
+  .step-card.done {
+    border-color: var(--green);
+    background: #f0fff4;
+  }
+
+  .step-card.error { border-color: var(--red); background: #fff0f0; }
+
+  .step-icon {
+    font-size: 22px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .step-name {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+  }
+
+  .step-card.active .step-name { color: var(--gold); }
+  .step-card.done .step-name { color: var(--green); }
+
+  .step-spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--gold-light);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 8px;
+    display: none;
+  }
+
+  .step-card.active .step-spinner { display: block; }
+  .step-card.active .step-icon { display: none; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    padding: 16px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 999;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-width: 360px;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: var(--green); color: white; }
+  .toast.error { background: var(--red); color: white; }
+  .toast.info { background: var(--ink); color: var(--paper); }
+
+  /* ── Videos Section ── */
+  .videos-section { padding: 48px; }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .section-header h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 400;
+  }
+
+  .count-badge {
+    font-size: 12px;
+    background: var(--cream);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 20px;
+    color: var(--muted);
+  }
+
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 28px;
+    border-bottom: 1.5px solid var(--border);
+  }
+
+  .tab {
+    padding: 10px 24px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1.5px;
+    transition: all 0.2s;
+    background: none;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+  .tab:hover:not(.active) { color: var(--ink); }
+
+  .videos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .video-card {
+    background: var(--cream);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1.5px solid var(--border);
+    transition: all 0.2s;
+  }
+
+  .video-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+
+  .video-thumb {
+    aspect-ratio: 16/9;
+    background: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    position: relative;
+  }
+
+  .video-thumb.shorts { aspect-ratio: 9/16; max-height: 180px; }
+
+  .format-tag {
+    position: absolute;
+    top: 10px; left: 10px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.15);
+    color: white;
+    backdrop-filter: blur(4px);
+  }
+
+  .video-info { padding: 16px; }
+
+  .video-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+
+  .video-meta {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .score-badge {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .score-high { background: #dcfce7; color: #166534; }
+  .score-low { background: #fef9c3; color: #854d0e; }
+
+  .video-actions {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn-sm {
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s;
+    border: none;
+  }
+
+  .btn-primary { background: var(--ink); color: var(--paper); }
+  .btn-primary:hover { background: #2a2a2a; }
+  .btn-secondary { background: var(--cream); color: var(--ink); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--border); }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    grid-column: 1 / -1;
+  }
+
+  .empty-state-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    header { padding: 0 20px; }
+    .hero { grid-template-columns: 1fr; padding: 40px 20px; gap: 32px; }
+    .steps-grid { grid-template-columns: repeat(3, 1fr); }
+    .videos-section { padding: 24px 20px; }
+    .progress-section { padding: 24px 20px; }
+    .stats-row { gap: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-dot"></span>
+    StoryForge
+  </div>
+  <div class="status-pill">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Checking...</span>
+  </div>
+</header>
+
+<!-- Hero + Generator -->
+<section class="hero">
+  <div class="hero-text">
+    <h1>Create <em>original</em> YouTube stories with AI</h1>
+    <p>Generate fully monetizable YouTube videos — complete with narration, subtitles, and original moral stories. Every video is unique, copyright-free, and ready to upload.</p>
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-num" id="totalCount">0</div>
+        <div class="stat-label">Videos Created</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="readyCount">0</div>
+        <div class="stat-label">Ready to Upload</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">~$0.03</div>
+        <div class="stat-label">Cost Per Video</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generator -->
+  <div class="generator">
+    <h2>Generate a new video</h2>
+
+    <div class="form-group">
+      <label>Format</label>
+      <div class="format-toggle">
+        <button class="format-btn active" data-format="shorts" onclick="selectFormat('shorts', this)">
+          Shorts · 9:16 · &lt;60s
+        </button>
+        <button class="format-btn" data-format="long" onclick="selectFormat('long', this)">
+          Long · 16:9 · 5–10 min
+        </button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Moral Theme</label>
+      <select class="theme-select" id="themeSelect" onchange="handleThemeChange(this)">
+        <option value="">✦ Random theme</option>
+        <option value="honesty and integrity">Honesty and integrity</option>
+        <option value="kindness to strangers">Kindness to strangers</option>
+        <option value="perseverance through failure">Perseverance through failure</option>
+        <option value="courage in adversity">Courage in adversity</option>
+        <option value="empathy and understanding">Empathy and understanding</option>
+        <option value="gratitude and appreciation">Gratitude and appreciation</option>
+        <option value="teamwork and cooperation">Teamwork and cooperation</option>
+        <option value="humility and self-improvement">Humility and self-improvement</option>
+        <option value="protecting nature and animals">Protecting nature and animals</option>
+        <option value="forgiveness and second chances">Forgiveness and second chances</option>
+        <option value="custom">✎ Custom theme...</option>
+      </select>
+      <input
+        type="text"
+        class="custom-theme-input"
+        id="customTheme"
+        placeholder="Type your own theme, e.g. 'loyalty between friends'"
+        maxlength="100"
+      />
+    </div>
+
+    <div class="form-group">
+      <label>Language</label>
+      <div class="format-toggle">
+        <button class="format-btn active" data-lang="english" onclick="selectLang('english', this)">
+          English
+        </button>
+        <button class="format-btn" data-lang="hindi" onclick="selectLang('hindi', this)">
+          Hindi
+        </button>
+        <button class="format-btn" data-lang="telugu" onclick="selectLang('telugu', this)">
+          Telugu
+        </button>
+      </div>
+    </div>
+
+    <button class="generate-btn" id="generateBtn" onclick="generateVideo()">
+      Generate Video
+    </button>
+
+    <div id="characterPreview" style="margin-top:20px;display:none;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#999;margin-bottom:10px;font-weight:500;">Story Characters</div>
+      <div id="characterCards" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Progress -->
+<section class="progress-section" id="progressSection">
+  <div class="progress-header">
+    <h3>Generating your video...</h3>
+    <span class="progress-id" id="jobId">—</span>
+  </div>
+  <div class="steps-grid">
+    <div class="step-card" id="step-story">
+      <div class="step-spinner"></div>
+      <span class="step-icon">✍️</span>
+      <div class="step-name">Story</div>
+    </div>
+    <div class="step-card" id="step-quality">
+      <div class="step-spinner"></div>
+      <span class="step-icon">✓</span>
+      <div class="step-name">Quality</div>
+    </div>
+    <div class="step-card" id="step-script">
+      <div class="step-spinner"></div>
+      <span class="step-icon">📄</span>
+      <div class="step-name">Script</div>
+    </div>
+    <div class="step-card" id="step-voice">
+      <div class="step-spinner"></div>
+      <span class="step-icon">🎙️</span>
+      <div class="step-name">Voice</div>
+    </div>
+    <div class="step-card" id="step-render">
+      <div class="step-spinner"></div>
+      <span class="step-icon">🎬</span>
+      <div class="step-name">Render</div>
+    </div>
+    <div class="step-card" id="step-done">
+      <div class="step-spinner"></div>
+      <span class="step-icon">📦</span>
+      <div class="step-name">Done</div>
+    </div>
+  </div>
+</section>
+
+<!-- Videos -->
+<section class="videos-section">
+  <div class="section-header">
+    <h2>Your videos</h2>
+    <span class="count-badge" id="videoBadge">0 videos</span>
+    <button onclick="loadVideos()" style="margin-left:auto;background:none;border:1px solid var(--border);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--muted)">↻ Refresh</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('all', this)">All</button>
+    <button class="tab" onclick="switchTab('ready', this)">Ready to Upload</button>
+    <button class="tab" onclick="switchTab('review', this)">Needs Review</button>
+  </div>
+
+  <div class="videos-grid" id="videosGrid">
+    <div class="empty-state">
+      <div class="empty-state-icon">🎬</div>
+      <p>No videos yet.<br>Generate your first one above!</p>
+    </div>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let selectedFormat = 'shorts';
+  let selectedLang = 'english';
+  let currentTab = 'all';
+  let allVideos = { ready_to_upload: [], review: [] };
+  let pollInterval = null;
+
+  function selectFormat(fmt, btn) {
+    selectedFormat = fmt;
+    document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function selectLang(lang, btn) {
+    selectedLang = lang;
+    document.querySelectorAll('[data-lang]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function handleThemeChange(sel) {
+    const custom = document.getElementById('customTheme');
+    custom.style.display = sel.value === 'custom' ? 'block' : 'none';
+    if (sel.value === 'custom') custom.focus();
+  }
+
+  function getTheme() {
+    const sel = document.getElementById('themeSelect').value;
+    if (sel === 'custom') return document.getElementById('customTheme').value.trim() || null;
+    return sel || null;
+  }
+
+  async function generateVideo() {
+    const btn = document.getElementById('generateBtn');
+    const theme = getTheme();
+    btn.disabled = true;
+    btn.textContent = 'Starting...';
+
+    try {
+      const params = new URLSearchParams({
+        format_type: selectedFormat,
+        language: selectedLang
+      });
+      if (theme) params.append('theme', theme);
+
+      const res = await fetch(`/generate?${params}`, { method: 'POST' });
+      const data = await res.json();
+
+      if (data.status === 'started') {
+        showProgress(data.job_id);
+        showToast('Video generation started!', 'info');
+        startPolling(data.job_id);
+      } else {
+        showToast('Something went wrong. Try again.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Generate Video';
+      }
+    } catch (e) {
+      showToast('Could not connect to server.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Generate Video';
+    }
+  }
+
+  function showProgress(jobId) {
+    document.getElementById('progressSection').classList.add('visible');
+    document.getElementById('jobId').textContent = jobId || '—';
+    ['story','quality','script','voice','render','done'].forEach(s => {
+      const el = document.getElementById(`step-${s}`);
+      el.classList.remove('active','done','error');
+    });
+    setStepActive('story');
+    document.getElementById('progressSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function setStepActive(step) {
+    document.getElementById(`step-${step}`)?.classList.add('active');
+  }
+
+  function setStepDone(step) {
+    const el = document.getElementById(`step-${step}`);
+    el?.classList.remove('active');
+    el?.classList.add('done');
+  }
+
+  let stepIndex = 0;
+  const stepSequence = ['story', 'quality', 'script', 'voice', 'render', 'done'];
+
+  function startPolling(jobId) {
+    const statusToStep = {
+      'starting':             0,
+      'generating_story':     0,
+      'quality_check':        1,
+      'generating_scripts':   2,
+      'generating_voice':     3,
+      'generating_images':    3,
+      'generating_subtitles': 3,
+      'rendering_video':      4,
+      'moving_output':        4,
+      'completed':            5,
+      'failed':              -1,
+    };
+
+    pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`/job/${jobId}`);
+        const data = await res.json();
+        const step = statusToStep[data.status] ?? 0;
+
+        for (let i = 0; i < stepSequence.length; i++) {
+          const el = document.getElementById(`step-${stepSequence[i]}`);
+          el.classList.remove('active', 'done', 'error');
+          if (i < step) setStepDone(stepSequence[i]);
+          else if (i === step) setStepActive(stepSequence[i]);
+        }
+
+        if (data.status === 'completed') {
+          clearInterval(pollInterval);
+          stepSequence.forEach(s => setStepDone(s));
+          onComplete();
+        } else if (data.status === 'failed') {
+          clearInterval(pollInterval);
+          showToast('Generation failed. Check terminal logs.', 'error');
+          document.getElementById('generateBtn').disabled = false;
+          document.getElementById('generateBtn').textContent = 'Generate Video';
+        }
+      } catch (e) { }
+    }, 5000);
+  }
+
+  function onComplete() {
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = false;
+    btn.textContent = 'Generate Video';
+    showToast('Video ready! Check the list below.', 'success');
+    loadVideos();
+    document.querySelector('.videos-section').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function loadVideos() {
+    try {
+      const res = await fetch('/videos');
+      const data = await res.json();
+      allVideos = data;
+      renderVideos();
+      updateCounts();
+    } catch (e) { }
+  }
+
+  function updateCounts() {
+    const total = allVideos.ready_to_upload.length + allVideos.review.length;
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('readyCount').textContent = allVideos.ready_to_upload.length;
+    document.getElementById('videoBadge').textContent = `${total} video${total !== 1 ? 's' : ''}`;
+  }
+
+  function switchTab(tab, btn) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    renderVideos();
+  }
+
+  function renderVideos() {
+    const grid = document.getElementById('videosGrid');
+    let videos = [];
+
+    if (currentTab === 'all') {
+      videos = [
+        ...allVideos.ready_to_upload.map(v => ({ name: v, type: 'ready' })),
+        ...allVideos.review.map(v => ({ name: v, type: 'review' }))
+      ];
+    } else if (currentTab === 'ready') {
+      videos = allVideos.ready_to_upload.map(v => ({ name: v, type: 'ready' }));
+    } else {
+      videos = allVideos.review.map(v => ({ name: v, type: 'review' }));
+    }
+
+    if (videos.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🎬</div>
+          <p>No videos here yet.<br>Generate your first one above!</p>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = videos.map(v => {
+      const isShorts = v.name.includes('shorts');
+      const title = v.name.replace(/_shorts|_long|\.mp4/g, '').replace(/_/g, ' ');
+      const isReady = v.type === 'ready';
+      const folder = isReady ? 'ready_to_upload' : 'review';
+
+      return `
+        <div class="video-card">
+          <div class="video-thumb ${isShorts ? 'shorts' : ''}">
+            <span style="font-size:32px;opacity:0.4">${isShorts ? '📱' : '🖥️'}</span>
+            <span class="format-tag">${isShorts ? 'Shorts' : 'Long'}</span>
+          </div>
+          <div class="video-info">
+            <div class="video-title">${title}</div>
+            <div class="video-meta">
+              <span class="score-badge ${isReady ? 'score-high' : 'score-low'}">
+                ${isReady ? '✓ Auto-approved' : '⚠ Needs review'}
+              </span>
+            </div>
+          </div>
+          <div class="video-actions">
+            <a href="/download/${folder}/${v.name}" download>
+              <button class="btn-sm btn-primary">Download</button>
+            </a>
+            <button class="btn-sm btn-secondary" onclick="copyMeta('${v.name}')">Copy Tags</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function copyMeta(filename) {
+    navigator.clipboard.writeText(`Generated by StoryForge AI — ${filename}`);
+    showToast('Metadata copied!', 'success');
+  }
+
+  function showToast(msg, type = 'info') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3500);
+  }
+
+  async function checkStatus() {
+    try {
+      const res = await fetch('/');
+      const data = await res.json();
+      if (data.status === 'running') {
+        document.getElementById('statusDot').classList.add('online');
+        document.getElementById('statusText').textContent = 'Agent online';
+      }
+    } catch (e) {
+      document.getElementById('statusText').textContent = 'Offline';
+    }
+  }
+
+  checkStatus();
+  loadVideos();
+  setInterval(loadVideos, 30000);
+
+  function showCharacters(characters) {
+    const preview = document.getElementById('characterPreview');
+    const cards = document.getElementById('characterCards');
+    if (!characters || !characters.length) return;
+
+    const roleIcon = {
+      'hero': '🦸', 'mentor': '🧙',
+      'antagonist': '😈', 'supporting': '👤'
+    };
+
+    preview.style.display = 'block';
+    cards.innerHTML = characters.map(c => `
+      <div style="background:#1a1917;border:1px solid #333;border-radius:8px;
+                  padding:12px;flex:1;min-width:100px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">
+          ${roleIcon[c.role] || '👤'}
+        </div>
+        <div style="font-size:12px;font-weight:500;color:#c9a84c;">${c.name}</div>
+        <div style="font-size:10px;color:#666;margin-top:2px;
+                    text-transform:capitalize;">${c.role}</div>
+      </div>
+    `).join('');
+  }
+</script>
+</body>
+</html>
