@@ -22,3 +22,6 @@ pytest>=8.0.0
 
 fastapi[standard]
 uvicorn
+
+huggingface_hub
+Pillow
