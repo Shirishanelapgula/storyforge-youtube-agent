@@ -41,7 +41,11 @@ class OutputManager:
         label = "ready_to_upload" if dest_dir == UPLOAD_DIR else "review"
 
         dest_dir.mkdir(parents=True, exist_ok=True)
-        dest_video = dest_dir / video_path.name
+        # Add language prefix to filename for easy identification
+        language = story.get("language", "english")
+        lang_prefix = {"english": "EN", "hindi": "HI", "telugu": "TE"}.get(language, "EN")
+        new_name = f"{lang_prefix}_{video_path.name}"
+        dest_video = dest_dir / new_name
 
         shutil.copy2(str(video_path), str(dest_video))
         logger.info(f"Video → /{label}/{video_path.name} (score={score:.2f})")

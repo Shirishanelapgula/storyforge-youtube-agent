@@ -57,6 +57,40 @@ def move_to_output(src: Path, dest_dir: Path) -> Path:
 
 
 def sanitize_filename(name: str) -> str:
-    """Strip unsafe characters from filenames."""
-    keep = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_- ")
-    return "".join(c if c in keep else "_" for c in name).strip().replace(" ", "_")
+    """
+    Create a safe filename that preserves meaning.
+    For non-ASCII titles (Telugu/Hindi), uses transliteration or word count.
+    """
+    import unicodedata
+
+    # Try to transliterate unicode to ASCII
+    try:
+        normalized = unicodedata.normalize('NFKD', name)
+        ascii_version = normalized.encode('ascii', 'ignore').decode('ascii').strip()
+    except Exception:
+        ascii_version = ""
+
+    # If ASCII version is meaningful (at least 3 chars) use it
+    if len(ascii_version) >= 3:
+        keep = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_- ")
+        clean = "".join(c if c in keep else "_" for c in ascii_version)
+        clean = "_".join(w for w in clean.split("_") if w)
+        return clean[:60]
+
+    # For Telugu/Hindi — use first 3 words transliterated or hash
+    words = name.strip().split()
+    if words:
+        # Take first 3 words and create a short identifier
+        short = "_".join(words[:3])
+        # Keep only safe chars, replace rest with underscore
+        safe = "".join(
+            c if c.isalnum() or c in "_- " else "_"
+            for c in short
+        )
+        safe = "_".join(w for w in safe.replace(" ", "_").split("_") if w)
+        if len(safe) >= 3:
+            return safe[:60]
+
+    # Final fallback — use hash of title
+    import hashlib
+    return "story_" + hashlib.md5(name.encode()).hexdigest()[:8]
