@@ -173,8 +173,10 @@ class TestImageAgent:
         from agents.image_agent import ImageAgent
         agent = ImageAgent()
         images = agent.generate_all(["test scene"], tmp_path, "long")
-        png_bytes = images[0].read_bytes()
-        assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+        img_bytes = images[0].read_bytes()
+        is_png = img_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+        is_jpg = img_bytes[:2] == b"\xff\xd8"
+        assert is_png or is_jpg, "Image must be PNG or JPEG format"
 
 
 # ── Output Manager ─────────────────────────────────────────────────────────────

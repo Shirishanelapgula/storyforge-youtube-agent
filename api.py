@@ -1,5 +1,18 @@
 import sys
 import os
+import certifi
+import httpx
+import ssl
+
+os.environ["SSL_CERT_FILE"] = certifi.where()
+os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
+
+# Corporate network SSL bypass
+_original_init = httpx.Client.__init__
+def _patched_init(self, **kwargs):
+    kwargs.setdefault("verify", False)
+    _original_init(self, **kwargs)
+httpx.Client.__init__ = _patched_init
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from dotenv import load_dotenv

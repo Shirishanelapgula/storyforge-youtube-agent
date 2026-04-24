@@ -22,7 +22,8 @@ STABILITY_API_KEY = os.getenv("STABILITY_API_KEY", "")          # Optional
 
 # ─── Claude Model ─────────────────────────────────────────────────────────────
 CLAUDE_MODEL = "claude-sonnet-4-20250514"
-CLAUDE_MAX_TOKENS = 4096
+CLAUDE_MAX_TOKENS = 6000
+CLAUDE_MAX_TOKENS_LONG = 12000   # Long videos need more tokens
 
 # ─── Video Formats ────────────────────────────────────────────────────────────
 VIDEO_FORMATS = {
@@ -41,7 +42,7 @@ VIDEO_FORMATS = {
         "min_duration_sec": 300,   # 5 min
         "max_duration_sec": 600,   # 10 min
         "fps": 30,
-        "target_scenes": 15,
+        "target_scenes": 10,
     },
 }
 
@@ -105,3 +106,9 @@ CONTENT_LANGUAGE = os.getenv("CONTENT_LANGUAGE", "english")
 SEEDANCE_API_KEY = os.getenv("SEEDANCE_API_KEY", "")
 SEEDANCE_BASE_URL = os.getenv("SEEDANCE_BASE_URL", "https://api.apimall.com/v1")
 VIDEO_ENGINE = os.getenv("VIDEO_ENGINE", "ffmpeg")  # "ffmpeg" | "seedance"
+
+
+# ─── Video Engines ────────────────────────────────────────────────────────────
+GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY", "")
+REPLICATE_API_KEY = os.getenv("REPLICATE_API_KEY", "")
+WAVESPEED_API_KEY = os.getenv("WAVESPEED_API_KEY", "")

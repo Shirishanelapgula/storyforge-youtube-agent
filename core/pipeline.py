@@ -14,7 +14,13 @@ from agents.video_agent import VideoAgent
 from core.job_manager import JobManager, JobStatus
 from core.output_manager import OutputManager
 from config.settings import (
-    BASE_DIR, SEEDANCE_API_KEY, SEEDANCE_BASE_URL, VIDEO_ENGINE
+    BASE_DIR,
+    SEEDANCE_API_KEY,
+    SEEDANCE_BASE_URL,
+    VIDEO_ENGINE,
+    GEMINI_API_KEY,
+    REPLICATE_API_KEY,
+    WAVESPEED_API_KEY,
 )
 from utils.logger import get_logger
 from utils.file_utils import job_workspace, unique_job_id
@@ -34,6 +40,57 @@ class ContentPipeline:
         self.video_agent = VideoAgent()
         self.output_manager = OutputManager()
         self.job_manager = JobManager(BASE_DIR)
+
+    def _fix_audio_duration(self, video_path: Path) -> None:
+        """Pad short audio to match video duration using ffmpeg."""
+        import subprocess, tempfile, shutil
+
+        # Get total video duration
+        result = subprocess.run(
+            ["ffprobe", "-v", "error",
+             "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1",
+             str(video_path)],
+            capture_output=True, text=True, check=True,
+        )
+        video_dur = float(result.stdout.strip())
+
+        # Get audio stream duration
+        result = subprocess.run(
+            ["ffprobe", "-v", "error",
+             "-show_entries", "stream=duration",
+             "-select_streams", "a:0",
+             "-of", "default=noprint_wrappers=1:nokey=1",
+             str(video_path)],
+            capture_output=True, text=True,
+        )
+
+        try:
+            audio_dur = float(result.stdout.strip())
+        except ValueError:
+            logger.warning("Could not read audio duration — skipping padding")
+            return
+
+        gap = video_dur - audio_dur
+        if gap <= 1.0:
+            logger.debug(f"Audio/video duration gap {gap:.1f}s — no padding needed")
+            return
+
+        logger.info(f"Audio is {gap:.1f}s shorter than video — padding with silence")
+        tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+        tmp.close()
+
+        subprocess.run(
+            ["ffmpeg", "-y",
+             "-i", str(video_path),
+             "-af", f"apad=pad_dur={gap}",
+             "-c:v", "copy",
+             "-c:a", "aac",
+             tmp.name],
+            check=True, capture_output=True,
+        )
+        shutil.move(tmp.name, str(video_path))
+        logger.info("Audio padding complete")
 
     def run(
         self,
@@ -83,12 +140,38 @@ class ContentPipeline:
             # ── 3. Build Scripts ─────────────────────────────────────────────
             job.update_status(JobStatus.GENERATING_SCRIPTS)
             scripts = self.script_agent.build_scripts(story, workspace)
+
+            # Ensure long videos have a proper conclusion
+            if format_type == "long" and scripts:
+                last = scripts[-1]
+                narration = last.get("narration", "")
+                conclusion_words = [
+                    "lesson", "learned", "remember", "moral",
+                    "subscribe", "end", "finally", "thus",
+                    "therefore", "always", "never forget",
+                ]
+                has_conclusion = any(
+                    w in narration.lower() for w in conclusion_words
+                )
+                if not has_conclusion:
+                    logger.warning(
+                        "Last scene lacks conclusion — appending moral statement"
+                    )
+                    moral = story.get(
+                        "moral", "Kindness and honesty lead to a better world."
+                    )
+                    scripts[-1]["narration"] = (
+                        narration + f" And so, {moral} "
+                        f"Thank you for watching! If you enjoyed this story, "
+                        f"please like and subscribe for more inspiring stories every week!"
+                    )
+
             image_prompts = self.script_agent.build_image_prompts(story, scripts)
 
             # ── 4. Generate Voice ────────────────────────────────────────────
             job.update_status(JobStatus.GENERATING_VOICE)
             audio_files = self.voice_agent.generate_all(
-                scripts, workspace, language   # ← language passed here
+                scripts, workspace, language
             )
             audio_durations = [
                 self.voice_agent.get_audio_duration(a) for a in audio_files
@@ -100,16 +183,51 @@ class ContentPipeline:
                 scripts, audio_durations, workspace
             )
 
-            # ── 6. Generate Images or Seedance Clips ─────────────────────────
+            # ── 6. Generate Video (clips or images) ──────────────────────────
             job.update_status(JobStatus.GENERATING_IMAGES)
 
-            if VIDEO_ENGINE == "seedance" and SEEDANCE_API_KEY:
-                logger.info("Using Seedance 2.0 for cinematic video clips")
-                from agents.seedance_agent import SeedanceAgent
-                seedance = SeedanceAgent(SEEDANCE_API_KEY, SEEDANCE_BASE_URL)
-                scene_video_files = seedance.generate_all(
-                    image_prompts, audio_files, audio_durations,
-                    workspace, format_type
+            if VIDEO_ENGINE == "motion":
+                logger.info("Using FLUX images + Ken Burns motion — cinematic pipeline")
+                from agents.motion_agent import MotionAgent
+                motion = MotionAgent()
+                scene_video_files = motion.generate_all(
+                    image_prompts, audio_files,
+                    audio_durations, workspace, format_type
+                )
+                job.update_status(JobStatus.RENDERING_VIDEO)
+                video_path = self.video_agent.render_from_clips(
+                    scene_video_files=scene_video_files,
+                    subtitle_paths={},
+                    workspace=workspace,
+                    story=story,
+                    format_type=format_type,
+                    audio_files=None,
+                )
+            elif VIDEO_ENGINE == "wavespeed" and WAVESPEED_API_KEY:
+                logger.info("Using WAN 2.2 via WaveSpeedAI for video clips")
+                from agents.wavespeed_agent import WaveSpeedAgent
+                ws = WaveSpeedAgent()
+                scene_video_files = ws.generate_all(
+                    image_prompts, audio_files,
+                    audio_durations, workspace, format_type
+                )
+                job.update_status(JobStatus.RENDERING_VIDEO)
+                video_path = self.video_agent.render_from_clips(
+                    scene_video_files=scene_video_files,
+                    subtitle_paths=subtitle_paths,
+                    workspace=workspace,
+                    story=story,
+                    format_type=format_type,
+                    audio_files=audio_files,
+                )
+
+            elif VIDEO_ENGINE == "replicate" and REPLICATE_API_KEY:
+                logger.info("Using WAN 2.1 via Replicate for video clips")
+                from agents.replicate_agent import ReplicateAgent
+                rep = ReplicateAgent()
+                scene_video_files = rep.generate_all(
+                    image_prompts, audio_files,
+                    audio_durations, workspace, format_type
                 )
                 job.update_status(JobStatus.RENDERING_VIDEO)
                 video_path = self.video_agent.render_from_clips(
@@ -119,7 +237,43 @@ class ContentPipeline:
                     story=story,
                     format_type=format_type,
                 )
+
+            elif VIDEO_ENGINE == "veo" and GEMINI_API_KEY:
+                logger.info("Using Veo 3.1 via Gemini for video clips")
+                from agents.veo_agent import VeoAgent
+                veo = VeoAgent()
+                scene_video_files = veo.generate_all(
+                    image_prompts, audio_files,
+                    audio_durations, workspace, format_type
+                )
+                job.update_status(JobStatus.RENDERING_VIDEO)
+                video_path = self.video_agent.render_from_clips(
+                    scene_video_files=scene_video_files,
+                    subtitle_paths=subtitle_paths,
+                    workspace=workspace,
+                    story=story,
+                    format_type=format_type,
+                )
+
+            elif VIDEO_ENGINE == "seedance" and SEEDANCE_API_KEY:
+                logger.info("Using Seedance 2.0 for cinematic video clips")
+                from agents.seedance_agent import SeedanceAgent
+                seedance = SeedanceAgent(SEEDANCE_API_KEY, SEEDANCE_BASE_URL)
+                scene_video_files = seedance.generate_all(
+                    image_prompts, audio_files,
+                    audio_durations, workspace, format_type
+                )
+                job.update_status(JobStatus.RENDERING_VIDEO)
+                video_path = self.video_agent.render_from_clips(
+                    scene_video_files=scene_video_files,
+                    subtitle_paths=subtitle_paths,
+                    workspace=workspace,
+                    story=story,
+                    format_type=format_type,
+                )
+
             else:
+                # Default: static images (Picsum/HuggingFace/placeholder)
                 image_files = self.image_agent.generate_all(
                     image_prompts, workspace, format_type
                 )
@@ -133,6 +287,9 @@ class ContentPipeline:
                     story=story,
                     format_type=format_type,
                 )
+
+            # ── Fix audio/video duration mismatch ───────────────────────────
+            self._fix_audio_duration(video_path)
 
             # ── 7. Route to Output ───────────────────────────────────────────
             job.update_status(JobStatus.MOVING_OUTPUT)

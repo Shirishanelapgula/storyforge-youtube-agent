@@ -58,10 +58,11 @@ def move_to_output(src: Path, dest_dir: Path) -> Path:
 
 def sanitize_filename(name: str) -> str:
     """
-    Create a safe filename that preserves meaning.
-    For non-ASCII titles (Telugu/Hindi), uses transliteration or word count.
+    Create a safe filename preserving meaning.
+    For non-ASCII titles (Telugu/Hindi), uses hash.
     """
     import unicodedata
+    import hashlib
 
     # Try to transliterate unicode to ASCII
     try:
@@ -70,27 +71,32 @@ def sanitize_filename(name: str) -> str:
     except Exception:
         ascii_version = ""
 
-    # If ASCII version is meaningful (at least 3 chars) use it
     if len(ascii_version) >= 3:
-        keep = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_- ")
+        keep = set(
+            "abcdefghijklmnopqrstuvwxyz"
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            "0123456789_-"
+        )
+        # Replace spaces and unsafe chars with underscore
         clean = "".join(c if c in keep else "_" for c in ascii_version)
-        clean = "_".join(w for w in clean.split("_") if w)
-        return clean[:60]
+        # Remove consecutive underscores
+        while "__" in clean:
+            clean = clean.replace("__", "_")
+        clean = clean.strip("_")
+        return clean[:60] if clean else "story"
 
-    # For Telugu/Hindi — use first 3 words transliterated or hash
+    # Non-ASCII (Telugu/Hindi) — use hash
     words = name.strip().split()
     if words:
-        # Take first 3 words and create a short identifier
         short = "_".join(words[:3])
-        # Keep only safe chars, replace rest with underscore
         safe = "".join(
-            c if c.isalnum() or c in "_- " else "_"
+            c if c.isalnum() or c == "_" else "_"
             for c in short
         )
-        safe = "_".join(w for w in safe.replace(" ", "_").split("_") if w)
+        while "__" in safe:
+            safe = safe.replace("__", "_")
+        safe = safe.strip("_")
         if len(safe) >= 3:
             return safe[:60]
 
-    # Final fallback — use hash of title
-    import hashlib
     return "story_" + hashlib.md5(name.encode()).hexdigest()[:8]

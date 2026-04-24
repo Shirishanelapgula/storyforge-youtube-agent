@@ -100,6 +100,8 @@ def main():
         "--format", choices=["long", "shorts"], default="long",
         help="Video format: 'long' (5-10 min) or 'shorts' (< 60s)"
     )
+    parser.add_argument("--theme", type=str, default=None,
+                    help="Story theme (optional)")
     parser.add_argument(
         "--language", choices=["english", "hindi", "telugu"],
         default="english", help="Story language"
