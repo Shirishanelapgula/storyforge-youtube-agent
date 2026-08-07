@@ -1,0 +1,6 @@
+build:
+  builder: buildpack
+  build-command: "apt-get update && apt-get install -y ffmpeg"
+
+run:
+  command: "uvicorn api:app --host 0.0.0.0 --port $PORT"
